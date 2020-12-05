@@ -22,6 +22,7 @@ namespace lab6
         Image<Gray, byte> bg = null;
         VideoCapture capture = new VideoCapture();
         private int framecount = 0;
+        public int Area = 700;
 
         BackgroundSubtractorMOG2 subtractor = new BackgroundSubtractorMOG2(1000, 32, true);
 
@@ -46,9 +47,9 @@ namespace lab6
         }
 
 
-
         private void timer1_Tick_1(object sender, EventArgs e)
         {
+
             framecount++;
             if (framecount >= capture.GetCaptureProperty(CapProp.FrameCount))
             {
@@ -59,12 +60,11 @@ namespace lab6
             {
                 var frame = capture.QueryFrame();
 
-
+                imageBox2.Image = Process2(frame);
                 imageBox1.Image = Process(frame);
-                //BG(cur);
+
 
             }
-
         }
 
         private void button2_Click(object sender, EventArgs e)
@@ -84,7 +84,7 @@ namespace lab6
         }
 
         private Image<Gray, byte> FilterMask(Image<Gray, byte> mask)
-        {
+        {            
             var anchor = new Point(-1, -1);
             var borderValue = new MCvScalar(1);
             // создание структурного элемента заданного размера и формы для морфологических операций
@@ -101,7 +101,34 @@ namespace lab6
             var threshold = dilation.ThresholdBinary(new Gray(240), new Gray(255));
             return threshold;
         }
+        private Image<Bgr, byte> Process2(Mat frame)
+        {
+            
+            Image<Gray, byte> cur = frame.ToImage<Gray, byte>();
+            Image<Gray, byte> diff = bg.AbsDiff(cur);
+                
+                diff.Erode(4);
+                diff.Dilate(6);
 
+                diff._ThresholdBinary(new Gray (10), new Gray(255));
+
+            VectorOfVectorOfPoint contours = new VectorOfVectorOfPoint();
+            CvInvoke.FindContours(diff, contours, null, RetrType.External,
+                ChainApproxMethod.ChainApproxTc89L1);
+            var output = frame.ToImage<Bgr, byte>().Copy();
+
+            for (int i = 0; i < contours.Size; i++)
+            {
+                if (CvInvoke.ContourArea(contours[i]) > Area)
+                {
+                    Rectangle boundingRect = CvInvoke.BoundingRectangle(contours[i]);
+                    output.Draw(boundingRect, new Bgr(Color.GreenYellow), 2);
+
+                }
+            }
+            //BG();
+            return output;
+        }
         private Image<Bgr, byte> Process(Mat frame)
         {
             Image<Gray, byte> cur = frame.ToImage<Gray, byte>();
@@ -120,7 +147,7 @@ namespace lab6
 
             for (int i = 0; i < contours.Size; i++)
             {
-                if (CvInvoke.ContourArea(contours[i]) > 700)
+                if (CvInvoke.ContourArea(contours[i]) > Area)
                 {
                     Rectangle boundingRect = CvInvoke.BoundingRectangle(contours[i]);
                     output.Draw(boundingRect, new Bgr(Color.GreenYellow), 2);
@@ -143,6 +170,11 @@ namespace lab6
             capture.Retrieve(frame);
 
             imageBox1.Image = Process(frame);
+        }
+
+        private void numericUpDown1_ValueChanged(object sender, EventArgs e)
+        {
+            Area = Int32.Parse(numericUpDown1.Value.ToString());
         }
     }
 }
